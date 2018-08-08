@@ -104,3 +104,28 @@ def conv_relu_pool_backward(dout, cache):
     da = relu_backward(ds, relu_cache)
     dx, dw, db = conv_backward_fast(da, conv_cache)
     return dx, dw, db
+
+def bn_forward(x, gamma, beta, bn_param):
+    """
+    Forward pass for batch normalization layer
+    
+    Inputs:
+    - x: Input to the batch normalization layer
+    - gamma, beta: 2 learnable parameter of bn layer
+    - bn_param: parameters for bn layer which contains epsilon, momentum, moving average of mean & variance
+    
+    Returns a tuple of:
+    - out: Output from the pooling layer
+    - cache: Object to give to the backward pass
+    """
+    out, cache = batchnorm_forward(x, gamma, beta, bn_param)
+    return out, cache
+    
+def bn_backward(dout, cache):
+    """
+    Backward pass for batch normalization layer
+    """
+    
+    #dx, dgamma, dbeta = batchnorm_backward_alt(dout, cache)
+    dx, dgamma, dbeta = batchnorm_backward(dout, cache)
+    return dx, dgamma, dbeta

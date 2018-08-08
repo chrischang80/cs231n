@@ -193,10 +193,12 @@ class FullyConnectedNet(object):
             else :
                 self.params["W"+str(i+1)] = np.random.randn(hidden_dims[i-1], hidden_dims[i]) * weight_scale
             self.params["b"+str(i+1)] = np.zeros(hidden_dims[i])
-            #self.params["gamma"+layers] = np.ones(hidden_dims)
-            #self.params["beta"+layers] = np.zeros(hidden_dims)
             
-        self.params["W"+str(self.num_layers)] = np.random.randn(hidden_dims[-1], num_classes)
+            if self.use_batchnorm:
+                self.params["gamma"+str(i+1)] = np.ones(hidden_dims[i])
+                self.params["beta"+str(i+1)] = np.zeros(hidden_dims[i])
+            
+        self.params["W"+str(self.num_layers)] = np.random.randn(hidden_dims[-1], num_classes) * weight_scale
         self.params["b"+str(self.num_layers)] = np.zeros(num_classes)
         ############################################################################
         #                             END OF YOUR CODE                             #
@@ -219,7 +221,13 @@ class FullyConnectedNet(object):
         self.bn_params = []
         if self.use_batchnorm:
             self.bn_params = [{'mode': 'train'} for i in range(self.num_layers - 1)]
-
+            #for i in range(self.num_layers-1):
+            #    self.bn_params[i]['eps'] = 1e-5
+            #    self.bn_params[i]['momentum'] = 0.9
+            #    self.bn_params[i]['running_mean'] = np.zeros(hidden_dims[i], dtype=dtype)
+            #    self.bn_params[i]['running_var'] = np.zeros(hidden_dims[i], dtype=dtype)
+            
+            
         # Cast all parameters to the correct datatype
         for k, v in self.params.items():
             self.params[k] = v.astype(dtype)
@@ -262,13 +270,19 @@ class FullyConnectedNet(object):
         for i in range(self.num_layers):
             if i == 0:
                 input = X
-                
+             
+            # affine_forward
             out, cache = affine_forward(input, self.params["W"+str(i+1)], self.params["b"+str(i+1)])
             layers_cache.append(cache)
             
             # last layer only do affine_forward
             if i == self.num_layers - 1:
                 break
+            
+            # batchnorm
+            if self.use_batchnorm:
+                out, cache = bn_forward(out, self.params["gamma"+str(i+1)], self.params["beta"+str(i+1)], self.bn_params[i])
+                layers_cache.append(cache)
             
             out, cache = relu_forward(out)
             layers_cache.append(cache)
@@ -306,16 +320,18 @@ class FullyConnectedNet(object):
         loss, dlogits = softmax_loss(scores, y)
         loss += reg_loss
         
+        
         dX, dW, db = affine_backward(dlogits, layers_cache.pop())
         grads["W"+str(self.num_layers)] = dW + self.reg * self.params["W"+str(self.num_layers)]
         grads["b"+str(self.num_layers)] = db
         
         for i in reversed(range(self.num_layers - 1)):
             dX = relu_backward(dX, layers_cache.pop())
+            if self.use_batchnorm:
+                dX, grads["gamma"+str(i+1)], grads["beta"+str(i+1)] = bn_backward(dX, layers_cache.pop())
             dX, dW, db = affine_backward(dX, layers_cache.pop())
             grads["W"+str(i+1)] = dW + self.reg * self.params["W"+str(i+1)]
             grads["b"+str(i+1)] = db
-        
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
