@@ -284,9 +284,15 @@ class FullyConnectedNet(object):
                 out, cache = bn_forward(out, self.params["gamma"+str(i+1)], self.params["beta"+str(i+1)], self.bn_params[i])
                 layers_cache.append(cache)
             
+            # relu
             out, cache = relu_forward(out)
             layers_cache.append(cache)
-                        
+                  
+            # dropout
+            if self.use_dropout:
+                out, cache = dout_forward(out, self.dropout_param)
+                layers_cache.append(cache)
+                
             input = out
         
         scores = out
@@ -326,10 +332,20 @@ class FullyConnectedNet(object):
         grads["b"+str(self.num_layers)] = db
         
         for i in reversed(range(self.num_layers - 1)):
+            # dropout
+            if self.use_dropout:
+                dX = dout_backward(dX, layers_cache.pop())
+            
+            # relu
             dX = relu_backward(dX, layers_cache.pop())
+            
+            # batchnorm
             if self.use_batchnorm:
                 dX, grads["gamma"+str(i+1)], grads["beta"+str(i+1)] = bn_backward(dX, layers_cache.pop())
+                
+            # affine backward
             dX, dW, db = affine_backward(dX, layers_cache.pop())
+            
             grads["W"+str(i+1)] = dW + self.reg * self.params["W"+str(i+1)]
             grads["b"+str(i+1)] = db
         ############################################################################

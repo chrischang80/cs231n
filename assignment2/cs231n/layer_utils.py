@@ -129,3 +129,17 @@ def bn_backward(dout, cache):
     #dx, dgamma, dbeta = batchnorm_backward_alt(dout, cache)
     dx, dgamma, dbeta = batchnorm_backward(dout, cache)
     return dx, dgamma, dbeta
+
+def dout_forward(x, dropout_param):
+    """
+    Forward pass for drop out layer
+    """
+    out, cache = dropout_forward(x, dropout_param)
+    return out, cache
+    
+def dout_backward(dout, cache):
+    """
+    Backward pass for drop out layer
+    """
+    dx = dropout_backward(dout, cache)
+    return dx
