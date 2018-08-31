@@ -148,7 +148,7 @@ class CaptioningRNN(object):
         if self.cell_type == 'rnn':
             hidden_all_timestamps, cache_rnn_forward = rnn_forward(words_vector, h0, Wx, Wh, b) # (N, T, W) -> (N, T, H)
         elif self.cell_type == 'lstm':
-            pass
+            hidden_all_timestamps, cache_lstm_forward = lstm_forward(words_vector, h0, Wx, Wh, b)
         
         # (4)
         scores, cache_temporal_affine_forward = temporal_affine_forward(hidden_all_timestamps, W_vocab, b_vocab) # (N, T, H) -> (N, T, V)
@@ -164,7 +164,7 @@ class CaptioningRNN(object):
         if self.cell_type == 'rnn':
             dx, dh0, grads['Wx'], grads['Wh'], grads['b'] = rnn_backward(dout, cache_rnn_forward)
         elif self.cell_type == 'lstm':
-            pass
+            dx, dh0, grads['Wx'], grads['Wh'], grads['b'] = lstm_backward(dout, cache_lstm_forward)
         
         # (2)
         grads['W_embed'] = word_embedding_backward(dx, cache_word_embedding)
@@ -233,11 +233,17 @@ class CaptioningRNN(object):
         # a loop.                                                                 #
         ###########################################################################
         prev_h, _ = affine_forward(features, W_proj, b_proj)
+        if self.cell_type == 'lstm':
+            prev_c = np.zeros_like(prev_h)
+            
         # proj n <START> token to W_embed vector space
         word_embedding, _ = word_embedding_forward(self._start * np.ones(N, dtype=np.int32), W_embed)
         
         for t in range(max_length):
-            prev_h, _ = rnn_step_forward(word_embedding, prev_h, Wx, Wh, b)
+            if self.cell_type == 'rnn':
+                prev_h, _ = rnn_step_forward(word_embedding, prev_h, Wx, Wh, b)
+            elif self.cell_type == 'lstm':
+                prev_h, prev_c, _ = lstm_step_forward(word_embedding, prev_h, prev_c, Wx, Wh, b)
             scores, _ = affine_forward(prev_h, W_vocab, b_vocab)
             captions[:, t] = np.argmax(scores, axis=1)
             word_embedding, _ = word_embedding_forward(captions[:, t], W_embed)
